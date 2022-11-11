@@ -2,9 +2,11 @@ package api
 
 import (
 	"database/sql"
+	"github.com/lib/pq"
+	"net/http"
+
 	db "github.com/JustinWG/simpleBank/db/sqlc"
 	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 type createAccountRequest struct {
@@ -37,6 +39,12 @@ func (server *Server) createAccount(ctx *gin.Context) {
 
 	account, err := server.store.CreateAccount(ctx, arg)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			switch pqErr.Code.Name() {
+			case "unique_violiation":
+				ctx.JSON(http.StatusForbidden, errorResponse(err))
+			}
+		}
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
